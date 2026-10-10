@@ -22,8 +22,8 @@
       duration:.20,events:[['wood',0,.97,.075,1],['wood',.10,.63,.065,1.16]]}),
     call: Object.freeze({label:'Call · two ceramic chips',family:'chips',
       duration:.22,events:[['chip',0,.94,.075,.98],['chip',.088,.80,.075,1.12]]}),
-    fold: Object.freeze({label:'Fold · card drawn across felt',family:'cards',
-      duration:.34,events:[['felt',0,.95,.265,.87],['card',.245,.56,.060,.9]]}),
+    fold: Object.freeze({label:'Fold · soft paper card sliding on felt',family:'cards',
+      duration:.29,events:[['paperSlide',0,.88,.245,.90],['paperRelease',.228,.24,.048,.88]]}),
     raise: Object.freeze({label:'Raise · chips stacked',family:'chips',
       duration:.36,events:[['chip',0,.72,.055,1],['chip',.052,.77,.064,1.17],
         ['chip',.112,.90,.065,.93],['chip',.185,.80,.075,1.10],['chip',.259,.69,.065,1.02]]}),
@@ -97,11 +97,18 @@
           const scrub=.70*grain+.25*bright;
           const edge=Math.sin(tau*710*pitch*t)*Math.exp(-93*t);
           v=.98*scrub*Math.exp(-37*t)+.14*edge;
+        } else if(material==='paperSlide'){
+          // Soft cardstock skimming felt: a narrow, uneven grain with a
+          // gentle swell and no bright hiss or pitched oscillator.
+          const arc=Math.pow(Math.sin(Math.PI*phase),1.35);
+          const fiber=.87+.13*Math.sin(tau*19*t);
+          v=(.74*grain+.035*bright)*arc*fiber;
+        } else if(material==='paperRelease'){
+          // Tiny papery contact as the fold finishes, not a chip-like clack.
+          v=(.66*grain+.035*bright)*Math.exp(-84*t);
         } else if(material==='felt'){
-          // A sustained, rolling swish, unlike two short card DEAL flicks.
           const arc=Math.pow(Math.sin(Math.PI*phase),.72);
-          const grainPulse=.80+.20*Math.sin(tau*27*t);
-          v=(.85*grain+.12*bright)*arc*grainPulse;
+          v=(.85*grain+.12*bright)*arc;
         } else if(material==='flip'){
           const contact=(.84*grain+.27*bright)*Math.exp(-33*t);
           const snap=Math.sin(tau*530*pitch*t)*Math.exp(-92*t);
@@ -125,7 +132,10 @@
     let peak=0;
     for(let i=0;i<data.length;i++)peak=Math.max(peak,Math.abs(data[i]));
     // Fixed bounded PCM normalization: per-gesture volume still on master.
-    const target=kind==='check'?.58:kind==='award'?.61:.60;
+    // A broad, sustained fold scrape formerly had much higher RMS than
+    // the short chip impacts despite their identical PCM peaks. Keep it
+    // deliberately quieter; loudness is not characterized by peak alone.
+    const target=kind==='fold'?.16:kind==='check'?.58:kind==='award'?.61:.60;
     const scale=peak?target/peak:0;
     for(let i=0;i<data.length;i++)data[i]*=scale;
     return data;
