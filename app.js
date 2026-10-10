@@ -50,6 +50,7 @@
   const characterPresentation = HoldemAICharacterPresentation.create();
   const tableStory = HoldemTableStory.create();
   let playSettings = HoldemPlaySettings.load();
+  const gameSound = HoldemSound.create();
   let savedMatch = HoldemMatchSave.load();
   let latestPublicLine = null;
   let winningPotIndex = 0;
@@ -375,6 +376,7 @@
   }
 
   function resumeMatch() {
+    gameSound.unlock();
     const record = HoldemMatchSave.load();
     if (!record) {
       savedMatch = null;
@@ -391,6 +393,7 @@
       const restored = makeGame(record.roster, record.boundary);
       const memories = HoldemAICharacterSession.create(restored, record.aiStates);
       game = restored;
+      if (restored.status === 'active') gameSound.play('deal');
       characterSession = memories;
       characterPresentation.clear();
       if (characterCueTimer !== null) {
@@ -439,6 +442,7 @@
   }
 
   function startMatch() {
+    gameSound.unlock(); // real Start button press; no autoplay on page load
     const seats = readSetup();
     if (!seats.some(p => p.type === 'human')) {
       $('setup-error').hidden = false;
@@ -456,6 +460,7 @@
       replayIndex = 0;
       $('history-list').replaceChildren();
       game = makeGame(seats);
+      gameSound.play('deal');
       HoldemMatchSave.clear();
       savedMatch = null;
       updateResumeControls();
@@ -501,7 +506,28 @@
     if ($('handoff-overlay').hidden) restoreFocus();
   }
 
+  function refreshSoundUI() {
+    const pref = gameSound.settings();
+    const toggle = $('sound-toggle');
+    toggle.setAttribute('aria-pressed',String(pref.enabled));
+    toggle.setAttribute('aria-label',pref.enabled ? 'Mute game sounds' : 'Enable game sounds');
+    toggle.querySelector('.header-label').textContent = pref.enabled ? 'Sound on' : 'Sound off';
+    toggle.title = pref.enabled ? 'Mute game sounds' : 'Enable game sounds';
+    $('settings-sound').checked = pref.enabled;
+    $('settings-volume').value = String(Math.round(pref.volume * 100));
+    $('settings-volume-output').textContent = Math.round(pref.volume * 100) + '%';
+    $('settings-volume').disabled = !pref.enabled;
+    $('sound-preview').disabled = !pref.enabled || pref.volume===0;
+  }
+  function soundAfterAction(beforeStreet,kind) {
+    if (!game) return;
+    if (game.status !== 'active') gameSound.play('award');
+    else if (game.street > beforeStreet) gameSound.play('reveal');
+    else gameSound.play(kind === 'allin' ? 'allin' :
+      ['fold','check','call','raise'].includes(kind) ? kind : 'call');
+  }
   function fillSettings() {
+    refreshSoundUI();
     $('settings-pace').value = playSettings.pace;
     $('settings-reactions').value = playSettings.reactions;
     $('settings-showdown').checked = playSettings.showdown;
@@ -527,6 +553,10 @@
     if ($('handoff-overlay').hidden) restoreFocus();
   }
   function applySettings() {
+    gameSound.configure({enabled:$('settings-sound').checked,
+      volume:Number($('settings-volume').value)/100});
+    if (gameSound.settings().enabled) gameSound.unlock();
+    refreshSoundUI();
     playSettings = HoldemPlaySettings.save({
       pace: $('settings-pace').value,
       reactions: $('settings-reactions').value,
@@ -594,6 +624,7 @@
   }
 
   function revealCurrentHand() {
+    gameSound.unlock();
     if (!game || game.status !== 'active' || !game.players[game.turn] || game.players[game.turn].type !== 'human') return;
     activeViewer = game.turn;
     forceReveal = false;
@@ -1220,15 +1251,18 @@
   }
 
   function playerAct(type, amount) {
+    gameSound.unlock();
     const legal = legalForHuman();
     if (!legal) return;
     const index = game.turn;
+    const beforeStreet = game.street;
     const previousViewer = activeViewer;
     const previousForceReveal = forceReveal;
     try {
       if (type === 'check' && !legal.canCheck) throw new Error('You must call or fold.');
       if (type === 'call' && legal.toCall === 0) type = 'check';
       game.act(index, type, amount);
+      soundAfterAction(beforeStreet,type);
       syncCharacterCues();
       activeViewer = null;
       forceReveal = false;
@@ -1337,7 +1371,10 @@
     if (!window.HoldemAI) throw new Error('AI strategy module not loaded');
     // One authoritative game action only. CharacterSession uses the same
     // AI.decision path, but safely includes bounded public-history mood.
+    const beforeStreet=game.street;
     const outcome=characterSession.act(index);
+    const latest=game.publicActions[game.publicActions.length-1];
+    soundAfterAction(beforeStreet,latest && latest.type);
     publishCharacterCues(outcome.cues);
   }
 
@@ -1364,6 +1401,7 @@
   }
 
   function nextHand() {
+    gameSound.unlock();
     if (!game) return;
     if (game.status === 'matchover' || game.players.filter(p => p.stack > 0).length <= 1) {
       showSetup();
@@ -1374,6 +1412,7 @@
     try {
       winningPotIndex = 0;
       game.startHand();
+      gameSound.play('deal');
       characterPresentation.clear();
       if (characterCueTimer !== null) {
         window.clearTimeout(characterCueTimer);
@@ -1459,6 +1498,17 @@
   $('setup-cancel').addEventListener('click', closeSetup);
   $('reset-btn').addEventListener('click', showSetup);
   $('settings-btn').addEventListener('click', openSettings);
+  $('sound-toggle').addEventListener('click', () => {
+    const next = !gameSound.settings().enabled;
+    gameSound.configure({enabled:next});
+    if (next) { gameSound.unlock(); gameSound.play('check'); }
+    refreshSoundUI();
+  });
+  $('settings-sound').addEventListener('change', applySettings);
+  $('settings-volume').addEventListener('input', applySettings);
+  $('sound-preview').addEventListener('click', () => {
+    gameSound.unlock(); gameSound.play('award');
+  });
   $('settings-done').addEventListener('click', closeSettings);
   $('settings-pace').addEventListener('change', applySettings);
   $('settings-reactions').addEventListener('change', applySettings);
@@ -1497,6 +1547,7 @@
   $('bet-slider').addEventListener('input', event => changeBet(event.target.value));
   document.querySelectorAll('[data-bet]').forEach(button => button.addEventListener('click', () => presetAmount(button.dataset.bet)));
 
+  refreshSoundUI();
   renderSetupRows();
   updateResumeControls();
   renderRoster();

@@ -9,6 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="assets/runtime/icons/favicon.svg">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="ai-character-presentation.css">
+  <link rel="stylesheet" href="mobile-polish.css">
   <meta name="robots" content="noindex, nofollow, noarchive">
 </head>
 <body>
@@ -20,9 +21,10 @@
       </a>
       <div class="table-mode"><span class="mode-dot"></span><span>OFFLINE PRIVATE TABLE</span><b>쨌</b><span>2?? SEATS</span></div>
       <div class="header-actions">
-        <button class="quiet-button" id="settings-btn" type="button">??Play settings</button>
-        <button class="quiet-button" id="help-btn" type="button"><span aria-hidden="true">?</span> How to play</button>
-        <button class="new-table-button" id="reset-btn" type="button"><span aria-hidden="true">??/span> New match</button>
+        <button class="quiet-button" id="settings-btn" type="button" aria-label="Play settings"><span class="header-icon" aria-hidden="true">??/span><span class="header-label">Play settings</span></button>
+        <button class="quiet-button" id="help-btn" type="button" aria-label="How to play"><span class="header-icon" aria-hidden="true">?</span><span class="header-label">How to play</span></button>
+        <button class="quiet-button sound-toggle" id="sound-toggle" type="button" aria-label="Mute game sounds" aria-pressed="true"><span class="header-icon" aria-hidden="true">??/span><span class="header-label">Sound on</span></button>
+        <button class="new-table-button" id="reset-btn" type="button" aria-label="New match"><span class="header-icon" aria-hidden="true">??/span><span class="header-label">New match</span></button>
       </div>
     </header>
 
@@ -162,6 +164,11 @@
         <label for="settings-reactions">Character reactions <small>What you see, not how opponents play</small></label>
         <select id="settings-reactions"><option value="full">Full 쨌 table stories and reactions</option><option value="quiet">Quiet 쨌 small seat reactions only</option><option value="off">Off 쨌 no character commentary</option></select>
         <label class="settings-checkbox" for="settings-showdown"><input id="settings-showdown" type="checkbox" checked> Show showdown flourish <small>Brief decorative reveal; results are never delayed</small></label>
+        <label class="settings-checkbox" for="settings-sound"><input id="settings-sound" type="checkbox" checked> Game sounds <small>Chips, card reveals and completed hands; never a hint of hidden cards</small></label>
+        <label class="settings-volume" for="settings-volume">Sound volume <output id="settings-volume-output" for="settings-volume">32%</output>
+          <input id="settings-volume" type="range" min="0" max="100" step="5" value="30">
+        </label>
+        <button class="sound-preview" id="sound-preview" type="button">??Test sound</button>
       </div>
       <p class="settings-note">Saved on this device when browser storage is available. System Reduced Motion is always respected.</p>
       <button id="settings-done" class="start-button" type="button">Back to the table <span aria-hidden="true">??/span></button>
@@ -200,6 +207,7 @@
   <script src="match-save.js"></script>
   <script src="play-settings.js"></script>
   <script src="table-effects.js"></script>
-  <script src="app.js"></script>
+  <script src="game-sound.js"></script>
+  <script src="app.js?v=mobile-audio-20261010"></script>
 </body>
 </html>
