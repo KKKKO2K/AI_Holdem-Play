@@ -1,0 +1,49 @@
+/* AI character reactions are lightweight, public information only.
+ * Nothing in this stylesheet changes cards, gameplay, or accessible controls.
+ */
+.seat .character-cue {
+  display: block;
+  margin-top: 3px;
+  max-width: 112px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 700 10px/1.2 Georgia, serif;
+  letter-spacing: .01em;
+  color: #8a613b;
+}
+.seat.turn .character-cue { color: #875321; }
+.seat.folded .character-cue { opacity: .75; }
+@media (max-width: 620px) {
+  .seat .character-cue {
+    max-width: 92px;
+    font-size: 9px;
+    margin-top: 2px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .seat .character-cue { animation: none; transition: none; }
+}
+
+
+/* Neutral visual presence while an AI considers a public betting situation.
+ * Not tied to cards, move choice, mood or strength. No new portrait artwork.
+ */
+.seat.turn.ai-thinking .seat-state {
+  border-color: #d0ac74;
+  background: #f1e6cd;
+  color: #5c513b;
+}
+.seat.turn.ai-thinking .seat-state::after {
+  content: " ···";
+  display: inline-block;
+  letter-spacing: .08em;
+  animation: felt-thinking-breathe 1.55s ease-in-out infinite;
+}
+@keyframes felt-thinking-breathe {
+  0%, 100% { opacity: .42; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .seat.turn.ai-thinking .seat-state::after { animation: none; opacity: .8; }
+}

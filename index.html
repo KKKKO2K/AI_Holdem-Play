@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102724">
+  <meta name="description" content="A cozy private Texas Hold'em club for friends and clever little foxes. Offline play for two to six seats.">
+  <title>Felt &amp; Fable ??Hold'em Club</title>
+  <link rel="icon" type="image/svg+xml" href="assets/runtime/icons/favicon.svg">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="ai-character-presentation.css">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+</head>
+<body>
+  <div class="app-shell" id="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Felt and Fable Hold'em Club">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M8 17 12 5l10 7h4l10-7 4 12v11c0 8-7 14-16 14S8 36 8 28V17Z" fill="#d88954" stroke="#804d35" stroke-width="2"/><path d="M13 24c2-4 6-6 11-6s9 2 11 6v5c0 6-5 10-11 10s-11-4-11-10v-5Z" fill="#fff0d9"/><path d="M18 27h.1M30 27h.1" stroke="#263d34" stroke-width="3" stroke-linecap="round"/><path d="m21 32 3-2 3 2-3 2-3-2Z" fill="#69453c"/><path d="M18 12 13 9M30 12l5-3" stroke="#f4c994" stroke-width="2" stroke-linecap="round"/></svg></span>
+        <span class="brand-text"><strong>Felt <i>&amp;</i> Fable</strong><small>HOLD'EM CLUB</small></span>
+      </a>
+      <div class="table-mode"><span class="mode-dot"></span><span>OFFLINE PRIVATE TABLE</span><b>쨌</b><span>2?? SEATS</span></div>
+      <div class="header-actions">
+        <button class="quiet-button" id="settings-btn" type="button">??Play settings</button>
+        <button class="quiet-button" id="help-btn" type="button"><span aria-hidden="true">?</span> How to play</button>
+        <button class="new-table-button" id="reset-btn" type="button"><span aria-hidden="true">??/span> New match</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="game-area" aria-label="Poker table">
+        <div class="game-heading">
+          <div><p class="eyebrow">THE FIRESIDE ROOM <span>쨌</span> TABLE 01</p><h1>Settle in. The cards are warm.</h1></div>
+          <ol class="phase-track" aria-label="Hand progress">
+            <li data-stage="0">Pre-flop</li><li data-stage="1">Flop</li><li data-stage="2">Turn</li><li data-stage="3">River</li>
+          </ol>
+        </div>
+
+        <div class="table-stage" id="table-stage" aria-label="Hold'em table">
+          <div class="oval-shadow"></div>
+          <div class="poker-table" aria-hidden="true">
+            <div class="table-inlay"></div>
+            <div class="table-etching"><span>F &amp; F</span><i>GOOD COMPANY 쨌 GOOD CARDS</i></div>
+          </div>
+          <div class="seat-layer" id="seat-layer"></div>
+          <div class="board-center">
+            <div class="pot-pill" id="pot-pill" role="group" aria-label="Live pot"><span class="pot-coin" aria-hidden="true">??/span><span class="pot-caption">LIVE POT</span><strong id="pot-value">??/strong></div>
+            <p class="paid-payout" id="paid-payout" hidden><span>PAID TO SEATS</span><strong id="paid-value">0</strong></p>
+            <div class="pot-chip-pile" id="pot-chip-pile" aria-hidden="true"></div>
+            <div class="community-cards" id="community-cards" aria-label="Community cards"></div>
+            <p class="board-caption" id="board-caption">The board is waiting</p><p class="table-story-note" id="table-story-note" hidden aria-hidden="true"></p>
+          </div>
+          <div class="showdown-cue" id="showdown-cue" aria-hidden="true" hidden></div><div class="all-in-note" id="all-in-note" hidden>ALL IN <span>쨌</span> RUN IT OUT</div>
+        </div>
+
+        <section class="action-panel" id="action-panel" aria-label="Your action">
+          <div class="action-topline">
+            <div class="turn-copy"><span class="turn-marker" aria-hidden="true">??/span><div><strong id="turn-title">Your move</strong><p id="turn-description">Choose an action when the cards are dealt.</p></div></div>
+            <span class="turn-indicator" id="turn-indicator" aria-hidden="true" hidden></span>
+            <span class="key-hint" id="key-hint">F fold&nbsp; 쨌 &nbsp;C call&nbsp; 쨌 &nbsp;R raise&nbsp; 쨌 &nbsp;A all-in</span>
+            <button class="retry-ai" id="retry-ai-btn" type="button" hidden>Retry AI decision</button>
+          </div>
+          <div class="action-row" id="action-row">
+            <button class="action-button fold-button" id="fold-btn" type="button"><kbd>F</kbd><span>Fold</span></button>
+            <button class="action-button call-button" id="call-btn" type="button"><kbd>C</kbd><span id="call-label">Check</span></button>
+            <div class="raise-control" id="raise-control">
+              <div class="raise-head"><label for="bet-slider" id="raise-caption">Raise to</label><strong id="raise-value">??/strong></div>
+              <input id="bet-slider" type="range" min="0" max="0" step="1" value="0" aria-label="Raise to total">
+              <div class="raise-presets">
+                <button data-bet="min" type="button">Min</button><button data-bet="half" type="button">쩍 pot</button><button data-bet="pot" type="button">Pot</button><button data-bet="max" type="button">Max</button>
+              </div>
+            </div>
+            <button class="action-button raise-button" id="raise-btn" type="button"><kbd>R</kbd><span id="raise-label">Raise</span></button>
+            <button class="action-button allin-button" id="allin-btn" type="button"><kbd>A</kbd><span>All-in</span></button>
+          </div>
+          <div class="finished-row" id="hand-finished" hidden>
+            <figure class="story-scene story-scene--result"><img src="assets/runtime/scenes/scene_hand_complete.webp" width="1440" height="811" alt="" aria-hidden="true" loading="lazy" decoding="async"></figure>
+            <div class="finished-copy"><span class="finish-tag" id="result-tag">HAND COMPLETE</span><strong id="result-title">The pot is yours</strong><label class="winning-pot-picker">Winning hand for <select id="winning-five-pot" aria-label="Highlight winning five cards for pot" hidden></select></label><ul class="showdown-hands" id="showdown-hands" aria-label="Hands revealed at showdown" hidden></ul><p class="result-total" id="result-total"></p><ul class="winner-awards" id="winner-awards"></ul><p id="result-detail"></p><details class="settlement-details" id="settlement-details" hidden><summary>Pot breakdown</summary><ul id="pot-awards"></ul></details></div>
+            <span class="result-ornament" aria-hidden="true"></span>
+            <div class="finished-controls"><p class="spectator-note" id="spectator-note" hidden>You?셱e out of chips. Watch the remaining players, or start a fresh match.</p><button class="new-match-now" id="new-match-now-btn" type="button" hidden>Start fresh</button><button class="next-hand" id="next-hand-btn" type="button">Next hand <span aria-hidden="true">??/span></button></div>
+          </div>
+          <p class="practice-note"><span aria-hidden="true">??/span> Practice chips only <b>쨌</b> No real money <b>쨌</b> AI reads its own cards and the public board</p>
+        </section>
+      </section>
+
+      <aside class="sidebar" aria-label="Table notes">
+        <details class="side-disclosure">
+          <summary><span class="summary-icon" aria-hidden="true">??/span><span>Hand estimate</span><span class="summary-sub">Optional</span></summary>
+          <div class="disclosure-content equity-content"><div class="equity-number" id="equity-number">??small>%</small></div><div class="equity-meter"><span id="equity-fill"></span></div><p>Approximate showdown share from sampled deals. It is a practice estimate, not a strategy guarantee.</p></div>
+        </details>
+        <details class="side-disclosure">
+          <summary><span class="summary-icon" aria-hidden="true">??/span><span>Meet the table</span><span class="summary-sub">Optional</span></summary>
+          <div class="disclosure-content"><p>Peek at the chosen personalities, or leave them a mystery and discover their habits yourself.</p><ul class="roster-list" id="roster-list"></ul></div>
+        </details>
+        <details class="side-disclosure" id="history-panel">
+          <summary><span class="summary-icon" aria-hidden="true">??/span><span>Hand history</span><span class="summary-sub">Public replay</span></summary>
+          <div class="disclosure-content history-content">
+            <p>Previous hands from this match. Only public actions and cards shown by AI at showdown are recorded.</p>
+            <ol id="history-list" class="history-list"></ol>
+            <section id="history-replay" class="history-replay" hidden aria-label="Public hand replay">
+              <strong id="history-progress"></strong>
+              <p id="history-step" aria-live="polite"></p>
+              <p id="history-board"></p><p id="history-pot"></p>
+              <p id="history-revealed"></p>
+              <div class="history-controls"><button id="history-prev" type="button">??Back</button><button id="history-next" type="button">Next step ??/button></div>
+            </section>
+          </div>
+        </details>
+        <details class="side-disclosure">
+          <summary><span class="summary-icon" aria-hidden="true">??/span><span>Table notes</span><span class="summary-sub" id="log-count">Recent</span></summary>
+          <ol class="event-log" id="event-log"></ol>
+        </details>
+        <div class="mascot-spotlight" id="nova-spotlight" hidden>
+          <img src="assets/runtime/characters/nova_fox.webp" width="512" height="512" alt="NOVA, the fox poker opponent" decoding="async">
+          <div class="mascot-spotlight-copy"><span>MEET YOUR OPPONENT</span><strong>NOVA the Fox</strong><p>Good cards, good company.</p></div>
+        </div>
+        <div class="offline-card"><span class="offline-lock" aria-hidden="true">??/span><div><strong>Just here at the table</strong><p>All play runs in this browser. Online multiplayer is not supported.</p></div></div>
+        <p class="checkpoint-status" id="checkpoint-status" role="status">Autosaves at completed hands only</p>
+        <p class="sidebar-foot">MADE FOR GOOD COMPANY</p>
+      </aside>
+    </main>
+  </div>
+
+  <div class="overlay setup-overlay" id="setup-overlay">
+    <section class="setup-modal" role="dialog" aria-modal="true" aria-labelledby="setup-title" aria-describedby="setup-intro">
+      <div class="modal-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M8 17 12 5l10 7h4l10-7 4 12v11c0 8-7 14-16 14S8 36 8 28V17Z" fill="#d88954" stroke="#804d35" stroke-width="2"/><path d="M13 24c2-4 6-6 11-6s9 2 11 6v5c0 6-5 10-11 10s-11-4-11-10v-5Z" fill="#fff0d9"/><path d="M18 27h.1M30 27h.1" stroke="#263d34" stroke-width="3" stroke-linecap="round"/><path d="m21 32 3-2 3 2-3 2-3-2Z" fill="#69453c"/></svg></div>
+      <p class="eyebrow">WELCOME TO THE FIRESIDE ROOM</p>
+      <h2 id="setup-title">Your table, your people.</h2>
+      <p class="modal-intro" id="setup-intro">Build a private offline game for two to six seats. Invite AI regulars or pass the device between friends.</p>
+      <figure class="story-scene story-scene--welcome"><img src="assets/runtime/scenes/scene_welcome.webp" width="1440" height="811" alt="Five storybook animal friends playing poker beside a warm fireplace" decoding="async"></figure>
+      <div class="setup-options">
+        <label class="seat-count-label" for="seat-count">Total seats <select id="seat-count"><option value="2">2 seats</option><option value="3">3 seats</option><option value="4" selected>4 seats</option><option value="5">5 seats</option><option value="6">6 seats</option></select></label>
+        <div class="seat-list-heading"><span>SEAT &amp; PLAYER</span><span>PLAY STYLE</span></div>
+        <div class="setup-seats" id="setup-seats"></div><p class="roster-hint">Each AI keeps its personality and skill throughout this match. ?쏶urprise me??rolls once when you start.</p>
+      </div>
+      <p class="resume-info" id="resume-info" hidden></p>
+      <button class="discard-save" id="discard-save-btn" type="button" hidden>Discard saved match</button>
+      <p class="save-privacy">Offline autosave occurs only after a finished hand. Refreshing during a hand resumes at the last settled checkpoint, with fresh cards dealt. Hidden human cards are never stored.</p>
+      <p class="setup-error" id="setup-error" role="alert" hidden>Please choose at least one human seat.</p>
+      <div class="setup-foot"><span>Offline 쨌 same device 쨌 virtual chips</span><div class="setup-buttons"><button class="saved-resume" id="resume-match-btn" type="button" hidden>Resume saved match</button><button class="cancel-setup" id="setup-cancel" type="button" hidden>Keep playing</button><button class="start-button" id="start-btn" type="button">Take your seat <span aria-hidden="true">??/span></button></div></div>
+    </section>
+  </div>
+
+  <div class="overlay handoff-overlay" id="handoff-overlay" hidden>
+    <section class="handoff-modal" role="dialog" aria-modal="true" aria-labelledby="handoff-title">
+      <span class="handoff-icon" aria-hidden="true">??/span>
+      <p class="eyebrow">A PRIVATE HAND</p>
+      <h2 id="handoff-title">Pass the device</h2>
+      <p id="handoff-copy">Give the device to the next player. Their hole cards stay hidden until they choose to look.</p>
+      <button class="start-button" id="reveal-btn" type="button">Reveal my hand <span aria-hidden="true">??/span></button>
+      <p class="privacy-note">Only this seat's cards will be shown.</p>
+    </section>
+  </div>
+
+  <div class="overlay settings-overlay" id="settings-overlay" hidden>
+    <section class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <p class="eyebrow">MAKE YOURSELF AT HOME</p>
+      <h2 id="settings-title">Play settings</h2>
+      <p class="modal-intro">Choose the table's pace and how talkative your opponents feel. Cards, decisions and chip rules stay the same.</p>
+      <div class="settings-fields">
+        <label for="settings-pace">AI pace <small>Only the wait between AI actions</small></label>
+        <select id="settings-pace"><option value="normal">Comfortable 쨌 default</option><option value="quick">Quick 쨌 shorter pauses</option><option value="relaxed">Unhurried 쨌 longer pauses</option></select>
+        <label for="settings-reactions">Character reactions <small>What you see, not how opponents play</small></label>
+        <select id="settings-reactions"><option value="full">Full 쨌 table stories and reactions</option><option value="quiet">Quiet 쨌 small seat reactions only</option><option value="off">Off 쨌 no character commentary</option></select>
+        <label class="settings-checkbox" for="settings-showdown"><input id="settings-showdown" type="checkbox" checked> Show showdown flourish <small>Brief decorative reveal; results are never delayed</small></label>
+      </div>
+      <p class="settings-note">Saved on this device when browser storage is available. System Reduced Motion is always respected.</p>
+      <button id="settings-done" class="start-button" type="button">Back to the table <span aria-hidden="true">??/span></button>
+    </section>
+  </div>
+
+  <div class="overlay help-overlay" id="help-overlay" hidden>
+    <section class="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <button class="modal-close" id="help-close" type="button" aria-label="Close rules">횞</button>
+      <p class="eyebrow">A FRIENDLY REMINDER</p><h2 id="help-title">The shape of a hand</h2>
+      <figure class="story-scene story-scene--tutorial"><img src="assets/runtime/scenes/scene_how_to_play.webp" width="1440" height="811" alt="A fox teaching friends at a cozy storybook poker table" loading="lazy" decoding="async"></figure>
+      <p>Each player gets two private cards. Make the best five-card poker hand from those and up to five shared cards on the felt.</p>
+      <div class="rule-list"><p><b>Pre-flop</b><span>Blinds are posted, then the first round of betting.</span></p><p><b>Flop</b><span>Three shared cards arrive after a burn card.</span></p><p><b>Turn &amp; river</b><span>One card each, with a burn before each deal.</span></p><p><b>Showdown</b><span>Best hand wins. Side pots and ties are shared fairly.</span></p></div>
+      <p class="rules-note">Raise amounts are shown as a total for this betting round. This table runs offline on one device. Online multiplayer is not supported.</p>
+      <button class="start-button" id="help-done" type="button">Back to the table <span aria-hidden="true">??/span></button>
+    </section>
+  </div>
+
+  <div class="sr-only" id="live-status" aria-live="polite" aria-atomic="true"></div>
+  <script src="poker.js"></script>
+  <script src="game.js"></script>
+  <script src="ai-range.js"></script>
+  <script src="ai-ev.js"></script>
+  <script src="ai-conditional.js"></script>
+  <script src="ai-postflop.js"></script>
+  <script src="ai-tree.js"></script>
+  <script src="ai.js"></script>
+  <script src="ai-character.js"></script>
+  <script src="ai-character-session.js"></script>
+  <script src="ai-roster.js"></script>
+  <script src="ai-character-presentation.js"></script>
+  <script src="ai-table-tempo.js"></script>
+  <script src="table-story.js"></script>
+  <script src="showdown-five.js"></script>
+  <script src="hand-history.js"></script>
+  <script src="match-save.js"></script>
+  <script src="play-settings.js"></script>
+  <script src="table-effects.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
