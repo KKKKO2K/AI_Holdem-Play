@@ -11,6 +11,14 @@
   'use strict';
 
   const KEY = 'felt-fable-sound-v1';
+  // Edited, local static ElevenLabs Foley assets. File or network errors fall
+  // back to the former procedural PCM without changing game behavior.
+  const ASSETS = Object.freeze({
+    deal:'assets/runtime/audio/deal.mp3',check:'assets/runtime/audio/check.mp3',
+    call:'assets/runtime/audio/call.mp3',fold:'assets/runtime/audio/fold.mp3',
+    raise:'assets/runtime/audio/raise.mp3',allin:'assets/runtime/audio/allin.mp3',
+    reveal:'assets/runtime/audio/reveal.mp3',award:'assets/runtime/audio/award.mp3'
+  });
   const DEFAULT = Object.freeze({enabled: true, volume: .45});
   // [material, start seconds, relative impact, lifetime seconds, relative pitch].
   // Contrast comes from the *material/envelope* and rhythmic fingerprint,
@@ -145,13 +153,65 @@
     const storage=options.storage===undefined ?
       (()=>{try{return typeof localStorage==='undefined'?null:localStorage;}catch(_){return null;}})() :
       options.storage;
+    const assetFetch=options.assetFetch===undefined
+      ? (typeof window!=='undefined'&&window.location?.protocol!=='file:'&&
+         typeof window.fetch==='function' ? window.fetch.bind(window) : null)
+      : options.assetFetch;
     const audioFactory=options.audioFactory || (()=>{
       const A=typeof window==='undefined'?null:(window.AudioContext||window.webkitAudioContext);
       return A?new A():null;
     });
     let pref=DEFAULT, audio=null, bus=null, master=null;
-    const samples=new Map();
+    const samples=new Map(),fileBytes=new Map(),fileBuffers=new Map(),decoding=new Set();
+    let preloadTask=null,offlineDecoder=null;
     let unlocked=false;
+    // Loading samples is silent and does not construct or resume AudioContext.
+    // Only strictly defined same-origin relative URLs are ever fetched.
+    function decode(kind) {
+      // An OfflineAudioContext may decode static files before a user gesture,
+      // without playing or constructing the audible AudioContext. Thus the
+      // first dealt hand also uses Foley when the browser supports this.
+      let decoder=audio;
+      if(!decoder&&typeof window!=='undefined'&&
+         typeof window.OfflineAudioContext==='function'){
+        try{offlineDecoder=offlineDecoder||new window.OfflineAudioContext(1,1,32000);
+          decoder=offlineDecoder;}catch(_){}
+      }
+      if(!decoder||typeof decoder.decodeAudioData!=='function'||
+         !fileBytes.has(kind)||decoding.has(kind))return;
+      decoding.add(kind);
+      try {
+        const input=fileBytes.get(kind).slice(0);
+        Promise.resolve(decoder.decodeAudioData(input)).then(buffer=>{
+          if(buffer&&Number.isFinite(buffer.duration)&&
+             buffer.duration>=.08&&buffer.duration<=2&&
+             buffer.numberOfChannels>=1)fileBuffers.set(kind,buffer);
+        }).catch(()=>{}).finally(()=>decoding.delete(kind));
+      }catch(_){decoding.delete(kind);}
+    }
+    function preload() {
+      if(!assetFetch)return Promise.resolve(false);
+      if(preloadTask)return preloadTask;
+      preloadTask=Promise.all(Object.entries(ASSETS).map(async ([kind,path])=>{
+        try {
+          const response=await assetFetch(path,{cache:'force-cache'});
+          if(!response||!response.ok)return false;
+          const bytes=await response.arrayBuffer();
+          if(bytes.byteLength<200||bytes.byteLength>500000)return false;
+          fileBytes.set(kind,bytes);
+          decode(kind);
+          return true;
+        }catch(_){return false;}
+      })).then(results=>results.some(Boolean)).catch(()=>false);
+      return preloadTask;
+    }
+    function assetStatus() {
+      return Object.freeze({fetched:fileBytes.size,decoded:fileBuffers.size});
+    }
+    function duration(kind) {
+      if(!Object.hasOwn(PATTERNS,kind))return 0;
+      return fileBuffers.get(kind)?.duration||PATTERNS[kind].duration;
+    }
     try {
       const raw=storage&&storage.getItem(KEY);
       pref=normalize(raw?JSON.parse(raw):null);
@@ -201,6 +261,8 @@
       try {
         if(!initialize())return false;
         unlocked=true;
+        for(const kind of fileBytes.keys())decode(kind);
+        void preload();
         if(audio.state==='suspended'&&typeof audio.resume==='function')
           Promise.resolve(audio.resume()).catch(()=>{});
         return true;
@@ -222,7 +284,7 @@
         (typeof document!=='undefined'&&document.hidden))return false;
       try {
         if(!audio||!bus||typeof audio.createBufferSource!=='function')return false;
-        const buffer=bufferFor(kind);
+        const buffer=fileBuffers.get(kind)||bufferFor(kind);
         if(!buffer)return false;
         const delay=Number.isFinite(options.delay)?Math.min(.8,Math.max(0,options.delay)):0;
         const source=audio.createBufferSource();
@@ -238,10 +300,10 @@
       if(audio&&typeof audio.suspend==='function')
         try{Promise.resolve(audio.suspend()).catch(()=>{});}catch(_){}
     }
-    return Object.freeze({settings,configure,unlock,play,suspend,
+    return Object.freeze({settings,configure,unlock,play,suspend,preload,assetStatus,duration,
       isUnlocked:()=>unlocked,
       available:()=>unlocked||typeof window!=='undefined'&&
         !!(window.AudioContext||window.webkitAudioContext)});
   }
-  return Object.freeze({KEY,DEFAULT,PATTERNS,normalize,outputGain,renderTexture,create});
+  return Object.freeze({KEY,DEFAULT,ASSETS,PATTERNS,normalize,outputGain,renderTexture,create});
 });

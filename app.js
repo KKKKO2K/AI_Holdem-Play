@@ -51,6 +51,8 @@
   const tableStory = HoldemTableStory.create();
   let playSettings = HoldemPlaySettings.load();
   const gameSound = HoldemSound.create();
+// Fetch only same-origin static SFX before play; decoding and sound remain gesture gated.
+void gameSound.preload();
   let savedMatch = HoldemMatchSave.load();
   let latestPublicLine = null;
   let winningPotIndex = 0;
@@ -529,7 +531,7 @@
     gameSound.play(action);
     // Let the physical action transient resolve before the street/award cue:
     // overlapping chip clacks with the board flip made both indistinct on phones.
-    const afterAction = Math.min(.8, (HoldemSound.PATTERNS[action]?.duration || .24) + .055);
+    const afterAction = Math.min(.8, (gameSound.duration(action) || .24) + .055);
     if (game.status !== 'active')
       gameSound.play('award',{delay:afterAction});
     else if (game.street > beforeStreet)
