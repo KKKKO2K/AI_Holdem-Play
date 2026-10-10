@@ -16,6 +16,12 @@
 .settings-volume output { justify-self: end; margin-top:-23px;
   font-variant-numeric:tabular-nums; color:#485b4b; }
 #settings-volume { width:100%; height:40px; margin:0; accent-color:#356f51; }
+.sound-choice { display:grid; gap:6px; color:#52644d; font-size:13px; font-weight:700; }
+.sound-choice select { width:100%; min-height:43px; padding:8px 10px;
+  color:#294638; background:#fdf8ec; border:1px solid #b5a381;
+  border-radius:8px; font:inherit; font-size:14px; }
+.sound-choice select:focus-visible { outline:2px solid #398363; outline-offset:2px; }
+.sound-choice select:disabled { opacity:.5; }
 .sound-preview { width:100%; min-height:42px; border:1px solid #baa982;
   border-radius:8px; color:#3d5d49; background:#fbf5e7; cursor:pointer; font-weight:800; }
 .sound-preview:disabled { opacity:.5; cursor:not-allowed; }

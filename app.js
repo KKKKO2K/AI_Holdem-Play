@@ -517,14 +517,20 @@
     $('settings-volume').value = String(Math.round(pref.volume * 100));
     $('settings-volume-output').textContent = Math.round(pref.volume * 100) + '%';
     $('settings-volume').disabled = !pref.enabled;
+    $('sound-preview-kind').disabled = !pref.enabled;
     $('sound-preview').disabled = !pref.enabled || pref.volume===0;
   }
   function soundAfterAction(beforeStreet,kind) {
     if (!game) return;
-    if (game.status !== 'active') gameSound.play('award');
-    else if (game.street > beforeStreet) gameSound.play('reveal');
-    else gameSound.play(kind === 'allin' ? 'allin' :
-      ['fold','check','call','raise'].includes(kind) ? kind : 'call');
+    // The bet/chip gesture always has its own audible identity, even if the
+    // same action ends the betting street. Reveal/payout follow afterward.
+    const action = ['fold','check','call','raise','allin'].includes(kind) ?
+      kind : 'call';
+    gameSound.play(action);
+    if (game.status !== 'active')
+      gameSound.play('award',{delay:action==='allin' ? .52 : .3});
+    else if (game.street > beforeStreet)
+      gameSound.play('reveal',{delay:action==='allin' ? .52 : .24});
   }
   function fillSettings() {
     refreshSoundUI();
@@ -1507,7 +1513,8 @@
   $('settings-sound').addEventListener('change', applySettings);
   $('settings-volume').addEventListener('input', applySettings);
   $('sound-preview').addEventListener('click', () => {
-    gameSound.unlock(); gameSound.play('award');
+    gameSound.unlock();
+    gameSound.play($('sound-preview-kind').value);
   });
   $('settings-done').addEventListener('click', closeSettings);
   $('settings-pace').addEventListener('change', applySettings);

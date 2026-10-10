@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="assets/runtime/icons/favicon.svg">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="ai-character-presentation.css">
-  <link rel="stylesheet" href="mobile-polish.css">
+  <link rel="stylesheet" href="mobile-polish.css?v=audio-distinct-20261010">
   <meta name="robots" content="noindex, nofollow, noarchive">
 </head>
 <body>
@@ -165,10 +165,22 @@
         <select id="settings-reactions"><option value="full">Full · table stories and reactions</option><option value="quiet">Quiet · small seat reactions only</option><option value="off">Off · no character commentary</option></select>
         <label class="settings-checkbox" for="settings-showdown"><input id="settings-showdown" type="checkbox" checked> Show showdown flourish <small>Brief decorative reveal; results are never delayed</small></label>
         <label class="settings-checkbox" for="settings-sound"><input id="settings-sound" type="checkbox" checked> Game sounds <small>Chips, card reveals and completed hands; never a hint of hidden cards</small></label>
-        <label class="settings-volume" for="settings-volume">Sound volume <output id="settings-volume-output" for="settings-volume">32%</output>
-          <input id="settings-volume" type="range" min="0" max="100" step="5" value="30">
+        <label class="settings-volume" for="settings-volume">Sound volume <output id="settings-volume-output" for="settings-volume">45%</output>
+          <input id="settings-volume" type="range" min="0" max="100" step="5" value="45">
         </label>
-        <button class="sound-preview" id="sound-preview" type="button">♪ Test sound</button>
+        <label class="sound-choice" for="sound-preview-kind">Compare game sounds
+          <select id="sound-preview-kind">
+            <option value="deal">Deal — cards shuffled</option>
+            <option value="reveal">Flop / turn / river — cards flipped</option>
+            <option value="check">Check — table tap</option>
+            <option value="call">Call — two chips</option>
+            <option value="raise">Raise — chip stack</option>
+            <option value="fold">Fold — card slide</option>
+            <option value="allin">All-in — chip push</option>
+            <option value="award" selected>Win / pot paid — bells</option>
+          </select>
+        </label>
+        <button class="sound-preview" id="sound-preview" type="button">♪ Preview selected sound</button>
       </div>
       <p class="settings-note">Saved on this device when browser storage is available. System Reduced Motion is always respected.</p>
       <button id="settings-done" class="start-button" type="button">Back to the table <span aria-hidden="true">→</span></button>
@@ -207,7 +219,7 @@
   <script src="match-save.js"></script>
   <script src="play-settings.js"></script>
   <script src="table-effects.js"></script>
-  <script src="game-sound.js"></script>
-  <script src="app.js?v=mobile-audio-20261010"></script>
+  <script src="game-sound.js?v=audio-distinct-20261010"></script>
+  <script src="app.js?v=audio-distinct-20261010"></script>
 </body>
 </html>
