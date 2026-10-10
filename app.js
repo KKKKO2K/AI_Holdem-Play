@@ -659,9 +659,13 @@
     return resultIsShowdown() && !p.folded && p.inHand !== false;
   }
 
+  function seatIsOut(p) {
+    // A 0-stack player is still ALL IN until the hand has settled.
+    return p.stack <= 0 && (p.inHand === false || game.status !== 'active');
+  }
   function seatState(index, p) {
+    if (seatIsOut(p)) return 'OUT';
     if (p.folded) return 'FOLDED';
-    if (p.stack <= 0 && p.inHand === false) return 'OUT';
     if (p.stack <= 0 && p.inHand !== false && game.status === 'active') return 'ALL IN';
     if (game.status === 'active' && game.turn === index) {
       if (p.type === 'human') return 'YOUR TURN';
@@ -789,7 +793,7 @@
         escapeHTML(latestPublicLine.text) + '</span>' : '';
       const avatarBg = ({ fox: '#f2dfc9', lion: '#f1dfb8', owl: '#e7ddca', cat: '#dce6d9', rabbit: '#ece5d8' })[p.mascot] || '#eadfc9';
       const classes = 'seat ' + (game.status === 'active' && game.turn === i ? 'turn ' : '') +
-        (p.folded ? 'folded ' : '') +
+        (seatIsOut(p) ? 'out ' : p.folded ? 'folded ' : '') +
         (game.status === 'finished' && game.result && Array.isArray(game.result.winners) && game.result.winners.includes(i) ? 'winner ' : '') +
         (p.type === 'human' ? 'human-seat ' : 'ai-seat ') +
         (p.type === 'ai' && game.status === 'active' && game.turn === i && thinking ? 'ai-thinking ' : '') +
@@ -1015,13 +1019,16 @@
     let title = '';
     if (game.status === 'matchover') {
       const remaining = game.players.filter(p => p.stack > 0).sort((a, b) => b.stack - a.stack);
-      title = remaining.length ? remaining[0].name + ' wins the match' : 'The match is complete';
+      const champion = remaining.length ? remaining[0].name : '';
+      title = champion ? champion + (champion === 'You' ? ' win the match' : ' wins the match') :
+        'The match is complete';
     } else if (pots.length > 1) {
       title = 'Pots awarded';
     } else if (pots.length === 1 && Array.isArray(pots[0].winners) && pots[0].winners.length > 1) {
       title = 'The pot is split';
     } else if (winnerList.length === 1) {
-      title = (game.players[winnerList[0]] && game.players[winnerList[0]].name || 'A player') + ' takes the pot';
+      const winnerName = game.players[winnerList[0]] && game.players[winnerList[0]].name || 'A player';
+      title = winnerName + (winnerName === 'You' ? ' take the pot' : ' takes the pot');
     } else if (winnerList.length > 1) {
       title = 'The pot is split';
     } else {
