@@ -527,10 +527,13 @@
     const action = ['fold','check','call','raise','allin'].includes(kind) ?
       kind : 'call';
     gameSound.play(action);
+    // Let the physical action transient resolve before the street/award cue:
+    // overlapping chip clacks with the board flip made both indistinct on phones.
+    const afterAction = Math.min(.8, (HoldemSound.PATTERNS[action]?.duration || .24) + .055);
     if (game.status !== 'active')
-      gameSound.play('award',{delay:action==='allin' ? .52 : .3});
+      gameSound.play('award',{delay:afterAction});
     else if (game.street > beforeStreet)
-      gameSound.play('reveal',{delay:action==='allin' ? .52 : .24});
+      gameSound.play('reveal',{delay:afterAction});
   }
   function fillSettings() {
     refreshSoundUI();
