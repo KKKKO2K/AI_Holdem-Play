@@ -7,9 +7,9 @@
   <meta name="description" content="A cozy private Texas Hold'em club for friends and clever little foxes. Offline play for two to six seats.">
   <title>Felt &amp; Fable — Hold'em Club · SFX by elevenlabs.io</title>
   <link rel="icon" type="image/svg+xml" href="assets/runtime/icons/favicon.svg">
-  <link rel="stylesheet" href="styles.css?v=generated-foley-20261010">
+  <link rel="stylesheet" href="styles.css?v=tournament-cards-20261011">
   <link rel="stylesheet" href="ai-character-presentation.css">
-  <link rel="stylesheet" href="mobile-polish.css?v=generated-foley-20261010">
+  <link rel="stylesheet" href="mobile-polish.css?v=tournament-cards-20261011">
   <meta name="robots" content="noindex, nofollow, noarchive">
 </head>
 <body>
@@ -31,7 +31,7 @@
     <main class="layout">
       <section class="game-area" aria-label="Poker table">
         <div class="game-heading">
-          <div><p class="eyebrow">THE FIRESIDE ROOM <span>·</span> TABLE 01</p><h1>Settle in. The cards are warm.</h1></div>
+          <div><p class="eyebrow">THE FIRESIDE ROOM <span>·</span> TABLE 01</p><h1>Settle in. The cards are warm.</h1><p id="tournament-status" class="tournament-status" role="status" hidden></p></div>
           <ol class="phase-track" aria-label="Hand progress">
             <li data-stage="0">Pre-flop</li><li data-stage="1">Flop</li><li data-stage="2">Turn</li><li data-stage="3">River</li>
           </ol>
@@ -78,7 +78,7 @@
             <figure class="story-scene story-scene--result"><img src="assets/runtime/scenes/scene_hand_complete.webp" width="1440" height="811" alt="" aria-hidden="true" loading="lazy" decoding="async"></figure>
             <div class="finished-copy"><span class="finish-tag" id="result-tag">HAND COMPLETE</span><strong id="result-title">The pot is yours</strong><label class="winning-pot-picker">Winning hand for <select id="winning-five-pot" aria-label="Highlight winning five cards for pot" hidden></select></label><ul class="showdown-hands" id="showdown-hands" aria-label="Hands revealed at showdown" hidden></ul><p class="result-total" id="result-total"></p><ul class="winner-awards" id="winner-awards"></ul><p id="result-detail"></p><details class="settlement-details" id="settlement-details" hidden><summary>Pot breakdown</summary><ul id="pot-awards"></ul></details></div>
             <span class="result-ornament" aria-hidden="true"></span>
-            <div class="finished-controls"><p class="spectator-note" id="spectator-note" hidden>You’re out of chips. Watch the remaining players, or start a fresh match.</p><button class="new-match-now" id="new-match-now-btn" type="button" hidden>Start fresh</button><button class="next-hand" id="next-hand-btn" type="button">Next hand <span aria-hidden="true">→</span></button></div>
+            <div class="finished-controls"><p class="spectator-note" id="spectator-note" hidden>You’re out of chips. Watch the remaining players, or start a fresh match.</p><button class="new-match-now" id="new-match-now-btn" type="button" hidden>Start fresh</button><button id="tournament-rebuy-btn" class="next-hand" type="button" hidden>Rebuy once · 1,500 chips</button><button id="tournament-decline-btn" class="new-match-now" type="button" hidden>Decline rebuy</button><button class="next-hand" id="next-hand-btn" type="button">Next hand <span aria-hidden="true">→</span></button></div>
           </div>
           <p class="practice-note"><span aria-hidden="true">✦</span> Practice chips only <b>·</b> No real money <b>·</b> AI reads its own cards and the public board</p>
         </section>
@@ -130,6 +130,12 @@
       <p class="modal-intro" id="setup-intro">Build a private offline game for two to six seats. Invite AI regulars or pass the device between friends.</p>
       <figure class="story-scene story-scene--welcome"><img src="assets/runtime/scenes/scene_welcome.webp" width="1440" height="811" alt="Five storybook animal friends playing poker beside a warm fireplace" decoding="async"></figure>
       <div class="setup-options">
+        <label class="seat-count-label" for="game-mode">Game mode <select id="game-mode"><option value="normal" selected>Normal · fixed blinds</option><option value="tournament">Tournament · timed blinds</option></select></label>
+        <div id="tournament-setup" class="tournament-setup" hidden>
+          <label for="tournament-level-minutes">Blind level duration <select id="tournament-level-minutes"><option value="1">1 minute</option><option value="3" selected>3 minutes</option><option value="5">5 minutes</option><option value="10">10 minutes</option></select></label>
+          <label for="tournament-registration-level">Late registration ends after <select id="tournament-registration-level"><option value="3">Level 3</option><option value="5" selected>Level 5</option><option value="7">Level 7</option></select></label>
+          <p>New AI players fill busted seats until registration closes. You may rebuy once while registration is open. Tournament progress is not yet autosaved.</p>
+        </div>
         <label class="seat-count-label" for="seat-count">Total seats <select id="seat-count"><option value="2">2 seats</option><option value="3">3 seats</option><option value="4" selected>4 seats</option><option value="5">5 seats</option><option value="6">6 seats</option></select></label>
         <div class="seat-list-heading"><span>SEAT &amp; PLAYER</span><span>PLAY STYLE</span></div>
         <div class="setup-seats" id="setup-seats"></div><p class="roster-hint">Each AI keeps its personality and skill throughout this match. “Surprise me” rolls once when you start.</p>
@@ -219,7 +225,8 @@
   <script src="match-save.js"></script>
   <script src="play-settings.js"></script>
   <script src="table-effects.js"></script>
-  <script src="game-sound.js?v=generated-foley-20261010"></script>
-  <script src="app.js?v=generated-foley-20261010"></script>
+  <script src="tournament.js?v=tournament-cards-20261011"></script>
+  <script src="game-sound.js?v=tournament-cards-20261011"></script>
+  <script src="app.js?v=tournament-cards-20261011"></script>
 </body>
 </html>

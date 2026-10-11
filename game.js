@@ -111,6 +111,40 @@
       return this.startHand();
     }
 
+    // New tournament entries and a human's approved rebuy occur ONLY once all
+    // current-hand bets have settled. A new buy-in adds real practice chips
+    // to the match supply; it never modifies pot, deck, or any active wager.
+    replaceEliminatedSeat(index, entrant) {
+      if (!['finished', 'matchover'].includes(this.status) || this.pot !== 0)
+        throw Error('A new entry requires a settled hand boundary');
+      if (!Number.isInteger(index) || index < 0 || index >= this.players.length ||
+          this.players[index].stack !== 0) throw Error('Seat is not eliminated');
+      if (!entrant || !['human', 'ai'].includes(entrant.type))
+        throw Error('A valid incoming seat is required');
+      const stack = entrant.stack === undefined ? this.initialStack : entrant.stack;
+      if (!integer(stack, 1) || stack !== this.initialStack ||
+          !Number.isSafeInteger(this.totalChips + stack))
+        throw Error('Invalid tournament starting stack');
+      const aiTraits = {};
+      for (const key of ['aggression', 'looseness', 'bluff', 'sizing', 'risk'])
+        if (entrant.aiTraits && Number.isFinite(entrant.aiTraits[key]))
+          aiTraits[key] = entrant.aiTraits[key];
+      const incoming = {
+        name: String(entrant.name || 'Guest ' + (index + 1)).slice(0, 36),
+        type: entrant.type, mascot: entrant.mascot || 'fox', stack,
+        aiStyle: typeof entrant.aiStyle === 'string' ? entrant.aiStyle : undefined,
+        aiSkill: typeof entrant.aiSkill === 'string' ? entrant.aiSkill : undefined,
+        aiTraits
+      };
+      this.roster[index] = { ...incoming, aiTraits: { ...aiTraits } };
+      this.players[index] = { ...incoming, aiTraits: { ...aiTraits },
+        cards: [], committed: 0, invested: 0, folded: false, acted: false,
+        actedAt: null, inHand: false, eliminated: false };
+      this.totalChips += stack;
+      this.assertConservation();
+      return this.players[index];
+    }
+
     note(message, kind = 'info') {
       this.logs.unshift({ message, kind, street: STREET_NAMES[this.street] });
       this.logs = this.logs.slice(0, 40);

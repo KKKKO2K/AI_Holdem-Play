@@ -69,6 +69,8 @@ void gameSound.preload();
   let matchSeats = defaultSeats.map(p => Object.assign({}, p));
   let setupDraft = matchSeats.map(p => Object.assign({}, p));
   let activeViewer = null;
+  let soloPeekVisible = false;
+  let soloPeekSuspended = false;
   let forceReveal = false;
   let thinking = false;
   let aiPaused = false;
@@ -81,11 +83,95 @@ void gameSound.preload();
   let lastLiveKey = '';
   let modalReturnFocus = null;
   let setupInitiallyOpen = true;
+  let tournament = null;
+  let tournamentDeclined = false;
+  let tournamentAppliedLevel = 1;
+  let tournamentEntrants = 0;
   const $app = $('app-shell');
   const tableEffects = HoldemTableEffects.create({
     stage: $('table-stage'), pile: $('pot-chip-pile'), potPill: $('pot-pill'),
     indicator: $('turn-indicator'), panel: $('action-panel')
   });
+
+  function tournamentHumanSeat() {
+    return game && game.players ? game.players.findIndex(p => p.type === 'human') : -1;
+  }
+
+  function tournamentRebuyAvailable() {
+    const seat = tournamentHumanSeat();
+    return !!tournament && game && game.status === 'finished' && seat >= 0 &&
+      game.players[seat].stack === 0 && !tournamentDeclined && tournament.canRebuy();
+  }
+
+  function tournamentNextGuest() {
+    const serial = ++tournamentEntrants;
+    const base = AI_DEFAULTS[(serial - 1) % AI_DEFAULTS.length];
+    const used = new Set(game.players.map(p => p.name));
+    let name = base.name + ' #' + serial;
+    while (used.has(name)) name += '+';
+    return HoldemAIRoster.resolve([{
+      name, type:'ai', mascot:base.mascot,
+      aiStyleMode:'random', aiSkillMode:'random'
+    }])[0];
+  }
+
+  function refreshTournamentStatus() {
+    const info = $('tournament-status');
+    info.hidden = !tournament;
+    $app.classList.toggle('tournament-active', !!tournament);
+    if (!tournament) return;
+    const clock = tournament.clock();
+    const remaining = Math.ceil(clock.remainingMs / 1000);
+    const time = Math.floor(remaining / 60) + ':' +
+      String(remaining % 60).padStart(2, '0');
+    info.textContent = 'TOURNAMENT · Level ' + clock.level +
+      ' · blinds ' + fmt(game.smallBlind) + '/' + fmt(game.bigBlind) +
+      ' · next ' + time + ' · registration ' +
+      (clock.registrationOpen ? 'OPEN' : 'CLOSED') +
+      ' · rebuy ' + tournament.rebuysRemaining() + '/1' +
+      (clock.level > tournamentAppliedLevel ? ' · new blinds next hand' : '');
+  }
+
+  function applyTournamentNextHand() {
+    // Caller must be between settled hands. Never insert an entrant during
+    // a live pot or count newly minted chips as a previous hand's result.
+    if (!tournament || game.status === 'active') throw Error('Invalid tournament boundary');
+    const clock = tournament.clock();
+    const existing = new Map(characterSession.seats().map(i =>
+      [i,characterSession.state(i)]));
+    const replaced = new Set();
+    if (clock.registrationOpen) {
+      for (let seat = 0; seat < game.players.length; seat++) {
+        if (game.players[seat].stack > 0) continue;
+        if (game.players[seat].type === 'human' &&
+            !tournamentDeclined && tournament.canRebuy())
+          throw Error('Choose whether to rebuy before dealing');
+        const guest = tournamentNextGuest();
+        game.replaceEliminatedSeat(seat,guest);
+        replaced.add(seat);
+        matchSeats[seat] = { ...guest };
+      }
+    }
+    game.smallBlind = clock.smallBlind;
+    game.bigBlind = clock.bigBlind;
+    tournamentAppliedLevel = clock.level;
+    if (!game.startHand()) return false;
+    // A living AI keeps the same public-only psychological state; each new
+    // AI entrant begins with a fresh character state and randomized profile.
+    const states = game.players.flatMap((p,seat) => {
+      if (p.type !== 'ai') return [];
+      const previous = existing.get(seat);
+      if (!replaced.has(seat) && previous &&
+          previous.style === HoldemAI.normalizeProfile(p,seat).style &&
+          previous.skill === HoldemAI.normalizeProfile(p,seat).skill)
+        return [previous];
+      const profile = HoldemAI.normalizeProfile(p,seat);
+      return [HoldemAICharacter.create({seat,style:profile.style,skill:profile.skill})];
+    });
+    characterSession = HoldemAICharacterSession.create(game,states);
+    renderRoster();
+    return true;
+  }
 
   function renderRoster() {
     const rows = matchSeats.map((seat, i) => {
@@ -395,6 +481,12 @@ void gameSound.preload();
       const restored = makeGame(record.roster, record.boundary);
       const memories = HoldemAICharacterSession.create(restored, record.aiStates);
       game = restored;
+      tournament = null; // v1 checkpoints are strictly normal-mode only
+      tournamentDeclined = false;
+      tournamentAppliedLevel = 1;
+      tournamentEntrants = 0;
+      $('game-mode').value = 'normal';
+      $('tournament-setup').hidden = true;
       if (restored.status === 'active') gameSound.play('deal');
       characterSession = memories;
       characterPresentation.clear();
@@ -413,7 +505,9 @@ void gameSound.preload();
       rebuildHistoryList();
       renderRoster();
       activeViewer = null;
-      forceReveal = true; // explicit handoff even in solo play
+      soloPeekVisible = true;
+      soloPeekSuspended = false;
+      forceReveal = activeHumanCount() !== 1;
       thinking = false;
       aiPaused = false;
       lastAIError = '';
@@ -446,7 +540,12 @@ void gameSound.preload();
   function startMatch() {
     gameSound.unlock(); // real Start button press; no autoplay on page load
     const seats = readSetup();
-    if (!seats.some(p => p.type === 'human')) {
+    const tournamentMode = $('game-mode').value === 'tournament';
+    const numberHumans = seats.filter(p => p.type === 'human').length;
+    if (!numberHumans || tournamentMode && numberHumans !== 1) {
+      $('setup-error').textContent = tournamentMode ?
+        'Tournament mode requires exactly one human seat.' :
+        'Please choose at least one human seat.';
       $('setup-error').hidden = false;
       focusFirst($('setup-overlay'), $('setup-seats').querySelector('.setup-type'));
       return;
@@ -461,12 +560,22 @@ void gameSound.preload();
       replayHand = null;
       replayIndex = 0;
       $('history-list').replaceChildren();
+      const chosenTournament = tournamentMode ? HoldemTournament.create({
+        levelMinutes:Number($('tournament-level-minutes').value),
+        registrationCloseLevel:Number($('tournament-registration-level').value)
+      }) : null;
       game = makeGame(seats);
+      tournament = chosenTournament;
+      tournamentDeclined = false;
+      tournamentAppliedLevel = 1;
+      tournamentEntrants = 0;
       gameSound.play('deal');
       HoldemMatchSave.clear();
       savedMatch = null;
       updateResumeControls();
-      $('checkpoint-status').textContent = 'Autosaves at completed hands only';
+      $('checkpoint-status').textContent = tournament ?
+        'Tournament is not autosaved yet · keep this tab open' :
+        'Autosaves at completed hands only';
       characterSession = HoldemAICharacterSession.create(game);
       characterPresentation.clear();
       if (characterCueTimer !== null) {
@@ -477,6 +586,8 @@ void gameSound.preload();
       setupDraft = matchSeats.map(p => Object.assign({}, p));
       renderRoster();
       activeViewer = null;
+      soloPeekVisible = true;
+      soloPeekSuspended = false;
       forceReveal = false;
       thinking = false;
       aiPaused = false;
@@ -614,20 +725,29 @@ void gameSound.preload();
   }
 
   function resolveHumanPrivacy() {
-    if (!game || game.status !== 'active' || !game.players[game.turn] || game.players[game.turn].type !== 'human') {
-      if (game && game.status === 'active' && activeViewer !== null && game.turn !== activeViewer) activeViewer = null;
+    if (!game) return;
+    if (game.status !== 'active') {
+      if (activeHumanCount() === 1 && !anyModalOpen() && !document.hidden) forceReveal = false;
+      return;
+    }
+    const current = game.players[game.turn];
+    const solo = activeHumanCount() === 1;
+    const modalBlocked = !$('setup-overlay').hidden || !$('help-overlay').hidden || !$('settings-overlay').hidden;
+    if (!current || current.type !== 'human') {
+      if (activeViewer !== null && game.turn !== activeViewer) activeViewer = null;
+      if (solo && !modalBlocked && !document.hidden) forceReveal = false;
       return;
     }
     if (activeViewer === game.turn) return;
-    const modalBlocked = !$('setup-overlay').hidden || !$('help-overlay').hidden || !$('settings-overlay').hidden;
     if (modalBlocked || document.hidden) return;
-    if (activeHumanCount() === 1 && !forceReveal) {
+    if (solo) {
+      forceReveal = false;
       activeViewer = game.turn;
       return;
     }
     if (!$('handoff-overlay').hidden) return;
-    $('handoff-title').textContent = 'Pass to ' + (game.players[game.turn].name || 'the next player');
-    $('handoff-copy').textContent = 'Give the device to ' + (game.players[game.turn].name || 'the next player') +
+    $('handoff-title').textContent = 'Pass to ' + (current.name || 'the next player');
+    $('handoff-copy').textContent = 'Give the device to ' + (current.name || 'the next player') +
       '. Their hole cards stay hidden until they choose to look.';
     $('handoff-overlay').hidden = false;
     updateModalInert();
@@ -652,14 +772,17 @@ void gameSound.preload();
   function canShowPlayerCards(index) {
     const p = game.players[index];
     if (p.type === 'human') {
-      // Solo play: one's own live hand remains visible at the outcome.
+      // Solo peek belongs to the human, not to whichever seat is acting.
+      // The value is UI-only and is reset when a new hand is dealt.
+      if (activeHumanCount() === 1) {
+        const ownHandAllowed = game.status === 'active' ||
+          resultIsShowdown() && !p.folded && p.inHand !== false;
+        return soloPeekVisible && ownHandAllowed &&
+          !anyModalOpen() && !forceReveal && !soloPeekSuspended && !document.hidden;
+      }
       // In hot-seat, always require explicit active-viewer authorization.
-      const soloReview = resultIsShowdown() && activeHumanCount() === 1 &&
-        !p.folded && p.inHand !== false && !anyModalOpen() &&
-        !forceReveal && !document.hidden;
       return game.status === 'active' && activeViewer === index ||
-        resultIsShowdown() && activeViewer === index && !p.folded ||
-        soloReview;
+        resultIsShowdown() && activeViewer === index && !p.folded;
     }
     return resultIsShowdown() && !p.folded && p.inHand !== false;
   }
@@ -762,6 +885,7 @@ void gameSound.preload();
 
   function renderSeats() {
     if (!game || !Array.isArray(game.players)) return;
+    const restoreSoloPeekFocus = $('seat-layer').querySelector('.solo-card-peek') === document.activeElement;
     $('table-stage').dataset.aiPhase = aiPhase;
     const positions = seatPositions(game.players.length);
     const zones = MOBILE_ZONES[game.players.length] || MOBILE_ZONES[4];
@@ -783,6 +907,11 @@ void gameSound.preload();
       const button = game.button === i ? '<span class="dealer-chip" aria-label="Dealer button">D</span>' : '';
       const role = game.sb === i ? '<span class="seat-role">SB</span>' : game.bb === i ? '<span class="seat-role">BB</span>' : '';
       const aiHuman = p.type === 'human' ? 'HUMAN' : 'AI';
+      const soloPeekSeat = p.type === 'human' && activeHumanCount() === 1;
+      const soloPeekAvailable = soloPeekSeat && game.status === 'active';
+      const holeCards = '<span class="seat-hole-cards ' + (visible ? 'revealed' : 'concealed') + '" aria-label="' + (visible ? 'Private cards for ' + escapeHTML(p.name) : 'Hidden private cards') + '">' + holeMarkup + '</span>';
+      const soloPeekButton = soloPeekAvailable ?
+        '<button class="solo-card-peek" type="button" aria-label="' + (soloPeekVisible ? 'Hide your cards' : 'Show your cards') + '" aria-pressed="' + String(soloPeekVisible) + '"><span class="solo-card-peek-label" aria-hidden="true">' + (soloPeekVisible ? 'Tap to hide your cards' : 'Tap to peek at your cards') + '</span>' + holeCards + '</button>' : holeCards;
       const characterCue = p.type === 'ai' && playSettings.reactions !== 'off' ?
         characterPresentation.forSeat(i, game.handNumber) : null;
       const visibleCue = p.folded || (game.status !== 'active' &&
@@ -801,6 +930,7 @@ void gameSound.preload();
         (seatIsOut(p) ? 'out ' : p.folded ? 'folded ' : '') +
         (game.status === 'finished' && game.result && Array.isArray(game.result.winners) && game.result.winners.includes(i) ? 'winner ' : '') +
         (p.type === 'human' ? 'human-seat ' : 'ai-seat ') +
+        (soloPeekSeat ? 'solo-peek-seat ' : '') +
         (p.type === 'ai' && game.status === 'active' && game.turn === i && thinking ? 'ai-thinking ' : '') +
         pos[2] + layoutClass +
         (visible ? ' hand-visible ' : ' ') + (lastInOddZone.has(i) ? 'mobile-last' : '');
@@ -815,12 +945,16 @@ void gameSound.preload();
         '<span class="seat-copy"><span class="seat-name-row"><span class="seat-name">' + escapeHTML(p.name) + '</span><span class="seat-type">' + aiHuman + '</span></span>' +
         '<span class="seat-stack"><i class="stack-dot" aria-hidden="true"></i>' + fmt(p.stack) + '</span>' + bet + cueMarkup + publicMoveMarkup + '</span>' +
         '<span class="seat-state">' + escapeHTML(state) + '</span>' +
-        '<span class="seat-hole-cards ' + (visible ? 'revealed' : 'concealed') + '" aria-label="' + (visible ? 'Private cards for ' + escapeHTML(p.name) : 'Hidden private cards') + '">' + holeMarkup + '</span>' +
+        soloPeekButton +
         '</div>';
     });
     const wrapZone = (name, indices) => '<div class="seat-zone seat-zone-' + name + (indices.length === 1 ? ' solo' : '') + '">' +
       indices.map(i => seatHTML[i]).join('') + '</div>';
     $('seat-layer').innerHTML = wrapZone('top', zones.top) + wrapZone('bottom', zones.bottom);
+    if (restoreSoloPeekFocus) {
+      const peek = $('seat-layer').querySelector('.solo-card-peek');
+      if (peek) peek.focus({ preventScroll: true });
+    }
     const novaIndex = game.players.findIndex(p => p.type === 'ai' && p.name === 'NOVA');
     $('nova-spotlight').hidden = novaIndex < 0;
     if (novaIndex >= 0) {
@@ -879,6 +1013,11 @@ void gameSound.preload();
     if (replayHand === null || !handArchive.some(entry => entry.hand === replayHand))
       replayHand = record.hand;
     rebuildHistoryList();
+    if (tournament) {
+      $('checkpoint-status').textContent =
+        'Tournament is not autosaved yet · keep this tab open';
+      return;
+    }
     // Save ONLY finished-hand stacks/public AI memories. Mid-hand decks,
     // hole cards and burns are never written to browser storage.
     const checkpoint = HoldemMatchSave.capture(game, matchSeats,
@@ -1128,6 +1267,10 @@ void gameSound.preload();
     const legal = ready ? game.legal(game.turn) : null;
     $('action-row').hidden = !active;
     $('hand-finished').hidden = active;
+    const rebuyOffer = tournamentRebuyAvailable();
+    $('tournament-rebuy-btn').hidden = !rebuyOffer;
+    $('tournament-decline-btn').hidden = !rebuyOffer;
+    $('next-hand-btn').hidden = rebuyOffer;
     if (active) renderShowdownHands();
     $('fold-btn').disabled = !ready || !!(legal && legal.canFold === false);
     $('call-btn').disabled = !ready || !legal || !(legal.canCheck || legal.canCall);
@@ -1209,16 +1352,21 @@ void gameSound.preload();
       const spectating = noHumanLeft && game.status !== 'matchover' && survivors > 1;
       $('spectator-note').hidden = !spectating;
       $('new-match-now-btn').hidden = !spectating;
-      $('next-hand-btn').innerHTML = game && game.status === 'matchover' || survivors <= 1 ?
+      const tourneyCanContinue = tournament && tournament.clock().registrationOpen;
+      $('next-hand-btn').innerHTML = game && game.status === 'matchover' ||
+        survivors <= 1 && !tourneyCanContinue ?
         'New match <span aria-hidden="true">→</span>' :
         spectating ? 'Watch next hand <span aria-hidden="true">→</span>' :
         'Next hand <span aria-hidden="true">→</span>';
-      if (spectating) $('turn-description').textContent =
+      if (rebuyOffer) $('turn-description').textContent =
+        'You are out of chips. Use your one allowed rebuy before late registration closes, or decline.';
+      else if (spectating) $('turn-description').textContent =
         'All human seats are out of chips. You can spectate the AI table or start again.';
     }
     const wasActive = $('action-panel').dataset.handActive === 'true';
     $('action-panel').dataset.handActive = String(active);
-    if (wasActive && !active && !modalBlocking) $('next-hand-btn').focus({ preventScroll: true });
+    if (wasActive && !active && !modalBlocking)
+      (rebuyOffer ? $('tournament-rebuy-btn') : $('next-hand-btn')).focus({ preventScroll: true });
     $('retry-ai-btn').hidden = !(active && turnPlayer && turnPlayer.type === 'ai' && aiPaused);
   }
 
@@ -1253,6 +1401,7 @@ void gameSound.preload();
     renderStoryMoments();
     renderSeats();
     renderBoard();
+    refreshTournamentStatus();
     renderLog();
     renderHandHistory();
     renderActions();
@@ -1376,6 +1525,7 @@ void gameSound.preload();
     renderStoryMoments();
     renderSeats();
     renderBoard();
+    refreshTournamentStatus();
     renderLog();
     renderHandHistory();
     renderActions();
@@ -1418,10 +1568,46 @@ void gameSound.preload();
     changeBet(Math.max(min, Math.min(max, target)));
   }
 
+  function tournamentRebuy() {
+    gameSound.unlock();
+    if (!tournamentRebuyAvailable()) return;
+    const seat = tournamentHumanSeat();
+    if (seat < 0) return;
+    const oldHuman = matchSeats[seat];
+    try {
+      // The explicit action precedes all next-hand changes and is permitted
+      // only at a completed boundary while the late-registration gate is open.
+      if (!tournament.consumeRebuy()) throw Error('Rebuy window closed');
+      game.replaceEliminatedSeat(seat, {
+        name:oldHuman.name, type:'human', mascot:oldHuman.mascot
+      });
+      tournamentDeclined = false;
+      nextHand();
+    } catch (error) {
+      console.error(error);
+      $('turn-description').textContent =
+        error.message || 'Unable to process the rebuy.';
+      drawWithoutQueue();
+    }
+  }
+
+  function tournamentDeclineRebuy() {
+    if (!tournamentRebuyAvailable()) return;
+    tournamentDeclined = true;
+    nextHand();
+  }
+
   function nextHand() {
     gameSound.unlock();
     if (!game) return;
-    if (game.status === 'matchover' || game.players.filter(p => p.stack > 0).length <= 1) {
+    if (game.status === 'active') return;
+    if (tournamentRebuyAvailable()) {
+      $('turn-description').textContent = 'Choose rebuy or decline before dealing the next hand.';
+      return;
+    }
+    const registrationOpen = !!tournament && tournament.clock().registrationOpen;
+    if (!registrationOpen && (game.status === 'matchover' ||
+        game.players.filter(p => p.stack > 0).length <= 1)) {
       showSetup();
       return;
     }
@@ -1429,7 +1615,13 @@ void gameSound.preload();
     cancelShowdownScene();
     try {
       winningPotIndex = 0;
-      game.startHand();
+      const dealt = tournament ? applyTournamentNextHand() : game.startHand();
+      if (!dealt) {
+        draw();
+        return;
+      }
+      soloPeekVisible = true;
+      soloPeekSuspended = false;
       gameSound.play('deal');
       characterPresentation.clear();
       if (characterCueTimer !== null) {
@@ -1487,19 +1679,35 @@ void gameSound.preload();
   });
 
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) cancelShowdownScene();
-    if (document.hidden && activeViewer !== null) {
+    if (document.hidden) {
+      cancelShowdownScene();
+      if (activeHumanCount() === 1) soloPeekSuspended = true;
+      if (activeViewer !== null || activeHumanCount() === 1) {
+        activeViewer = null;
+        forceReveal = true;
+        draw();
+      }
+    } else {
+      if (activeHumanCount() === 1) soloPeekSuspended = false;
+      draw();
+    }
+  });
+  window.addEventListener('blur', () => {
+    if (activeHumanCount() === 1) {
+      soloPeekSuspended = true;
       activeViewer = null;
       forceReveal = true;
       draw();
-    } else if (!document.hidden) draw();
-  });
-  window.addEventListener('blur', () => {
-    if (activeViewer !== null) {
+    } else if (activeViewer !== null) {
       activeViewer = null;
       forceReveal = true;
       draw();
     }
+  });
+  window.addEventListener('focus', () => {
+    if (activeHumanCount() !== 1 || !soloPeekSuspended) return;
+    soloPeekSuspended = false;
+    draw();
   });
 
   // Reserve the dock's actual height, including text wrapping and safe areas.
@@ -1509,6 +1717,19 @@ void gameSound.preload();
     }).observe($('action-panel'));
   }
 
+  $('seat-layer').addEventListener('click', event => {
+    const source = event.target instanceof Element ? event.target.closest('.solo-card-peek') : null;
+    if (!source || !game || game.status !== 'active' || activeHumanCount() !== 1) return;
+    soloPeekVisible = !soloPeekVisible;
+    draw();
+    const next = $('seat-layer').querySelector('.solo-card-peek');
+    if (next) next.focus({ preventScroll: true });
+  });
+
+  $('game-mode').addEventListener('change', () => {
+    $('tournament-setup').hidden = $('game-mode').value !== 'tournament';
+    $('setup-error').hidden = true;
+  });
   $('seat-count').addEventListener('change', renderSetupRows);
   $('start-btn').addEventListener('click', startMatch);
   $('resume-match-btn').addEventListener('click', resumeMatch);
@@ -1537,6 +1758,11 @@ void gameSound.preload();
   $('help-done').addEventListener('click', closeHelp);
   $('reveal-btn').addEventListener('click', revealCurrentHand);
   $('next-hand-btn').addEventListener('click', nextHand);
+  $('tournament-rebuy-btn').addEventListener('click', tournamentRebuy);
+  $('tournament-decline-btn').addEventListener('click', tournamentDeclineRebuy);
+  window.setInterval(() => {
+    if (tournament && !document.hidden) refreshTournamentStatus();
+  }, 1000);
   $('history-prev').addEventListener('click', () => {
     replayIndex--; renderReplay();
   });
